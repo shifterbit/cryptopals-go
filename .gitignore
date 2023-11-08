@@ -19,3 +19,8 @@
 
 # Go workspace file
 go.work
+
+# Nix Artifacts
+result
+# Nix-Direnv Cache
+.direnv
