@@ -15,3 +15,11 @@ func Hex2Base64(b []byte) ([]byte, error) {
 	base64.RawStdEncoding.Encode(res, decodedHex)
 	return res, nil
 }
+
+func FixedXOR(key []byte, b []byte) []byte {
+	res := make([]byte, len(b))
+	for i, v := range b {
+		res[i] = key[i] ^ v
+	}
+	return res
+}

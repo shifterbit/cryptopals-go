@@ -2,6 +2,7 @@ package cryptopalsgo_test
 
 import (
 	"bytes"
+	"encoding/hex"
 	"testing"
 
 	cryptopalsgo "github.com/shifterbit/cryptopals-go"
@@ -18,5 +19,34 @@ func TestHex2Base64(t *testing.T) {
 		t.Fatalf("expected %q got %q", string(expected), string(output))
 	}
 
-
 }
+
+func TestFixedXOR(t *testing.T) {
+	input := []byte("1c0111001f010100061a024b53535009181c")
+	key := []byte("686974207468652062756c6c277320657965")
+	expected := []byte("746865206b696420646f6e277420706c6179")
+
+	decodedInput := make([]byte, hex.DecodedLen(len(input)))
+	decodedKey := make([]byte, hex.DecodedLen(len(key)))
+	decodedExpected := make([]byte, hex.DecodedLen(len(expected)))
+	_, err := hex.Decode(decodedInput, input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = hex.Decode(decodedKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = hex.Decode(decodedExpected, expected)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	output := cryptopalsgo.FixedXOR(decodedKey, decodedInput)
+
+	if bytes.Equal(decodedExpected, output) != true {
+		t.Fatalf("expected %q got %q", string(expected), string(output))
+	}
+}
+
