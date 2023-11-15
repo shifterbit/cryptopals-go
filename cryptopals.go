@@ -1,6 +1,7 @@
 package cryptopalsgo
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/hex"
 )
@@ -22,4 +23,9 @@ func FixedXOR(key []byte, b []byte) []byte {
 		res[i] = key[i] ^ v
 	}
 	return res
+}
+
+func SingleByteXOR(key byte, b []byte) []byte {
+	expandedKey := bytes.Repeat([]byte{key}, len(b))
+	return FixedXOR(expandedKey, b)
 }
