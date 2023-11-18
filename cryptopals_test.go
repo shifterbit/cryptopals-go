@@ -50,3 +50,16 @@ func TestFixedXOR(t *testing.T) {
 	}
 }
 
+
+func TestRecoverSingleByteXor(t *testing.T) {
+
+	input, _ := hex.DecodeString("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736")
+	expected := []byte("Cooking MC's like a pound of bacon")
+	expectedKey := 'X'
+	key, plaintext := cryptopalsgo.RecoverSingleByteXOR(input)
+	if bytes.Equal(expected, plaintext) != true || key != byte(expectedKey) {
+		t.Fatalf("expected plaintext %q got %q \n expected key %q got %q",
+			string(expected), string(plaintext), string(expectedKey), string(key))
+	}
+
+}
