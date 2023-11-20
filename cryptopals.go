@@ -70,6 +70,13 @@ func SingleByteXOR(key byte, b []byte) []byte {
 	return FixedXOR(expandedKey, b)
 }
 
+func RepeatingKeyXOR(key []byte, b []byte) []byte {
+	minRepetitions := 1 + len(b)/len(key)
+	repeatedKey := bytes.Repeat(key, minRepetitions)
+	repeatedKey = repeatedKey[:len(b)]
+	return FixedXOR(repeatedKey, b)
+}
+
 func RecoverSingleByteXOR(b []byte) (byte, []byte) {
 	possiblePlaintexts := bruteforceSingleByteXOR(b)
 	var bestKey byte = ' '
@@ -194,7 +201,7 @@ func HexDecodeAll(b [][]byte) [][]byte {
 	for i := range b {
 		decoded := make([]byte, hex.DecodedLen(len(b[i])))
 		hex.Decode(decoded, b[i])
-		outputs = append(outputs, decoded )
+		outputs = append(outputs, decoded)
 	}
 	return outputs
 }
