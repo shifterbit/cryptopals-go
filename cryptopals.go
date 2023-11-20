@@ -72,29 +72,58 @@ func SingleByteXOR(key byte, b []byte) []byte {
 
 func RecoverSingleByteXOR(b []byte) (byte, []byte) {
 	possiblePlaintexts := bruteforceSingleByteXOR(b)
-
 	var bestKey byte = ' '
 	var bestPlaintext []byte = nil
 	var lowestScore float64 = math.Inf(1)
 	for key, plaintext := range possiblePlaintexts {
-		freqb := byteFrequency(defaultCharset, plaintext)
-		freq := relativeByteFrequency(freqb)
-
-		if freqb == nil {
-			continue
-		}
-		expandedDefaultFreq := expandRelativeCharFreq(defaultFreq, 1000000)
-		expandedFreq := expandRelativeCharFreq(freq, 1000000)
-		score := chiSqr(expandedDefaultFreq, expandedFreq)
-		if lowestScore > score {
-
+		score := englishness(plaintext)
+		if lowestScore > score && percentFromCharset(defaultCharset, plaintext) > 70 {
 			lowestScore = score
 			bestKey = key
 			bestPlaintext = plaintext
 		}
 	}
-
 	return bestKey, bestPlaintext
+}
+
+func DetectSingleByteXOR(b [][]byte) (byte, []byte) {
+	type plaintextKeyPair struct {
+		key       byte
+		plaintext []byte
+	}
+	var pairs []plaintextKeyPair = make([]plaintextKeyPair, 0)
+	for _, value := range b {
+		key, plaintext := RecoverSingleByteXOR(value)
+		pairs = append(pairs, plaintextKeyPair{
+			key:       key,
+			plaintext: plaintext,
+		})
+	}
+	var bestPair plaintextKeyPair
+	var lowestScore float64 = math.Inf(1)
+	for _, value := range pairs {
+		score := englishness(value.plaintext)
+		if lowestScore > score {
+			lowestScore = score
+			bestPair = value
+		}
+	}
+
+	return bestPair.key, bestPair.plaintext
+
+}
+
+func percentFromCharset(charset []byte, b []byte) int {
+	count := float64(0)
+	total := float64(len(b))
+	for _, v := range b {
+		if bytes.Contains(charset, []byte{v}) {
+			count = count + 1
+		}
+
+	}
+
+	return int(math.Round(count * 100 / total))
 }
 
 func bruteforceSingleByteXOR(b []byte) map[byte]([]byte) {
@@ -160,6 +189,16 @@ func CharacterFrequencyFromFile(filename string, charset []byte) (relativeCharFr
 
 }
 
+func HexDecodeAll(b [][]byte) [][]byte {
+	outputs := make([][]byte, 0)
+	for i := range b {
+		decoded := make([]byte, hex.DecodedLen(len(b[i])))
+		hex.Decode(decoded, b[i])
+		outputs = append(outputs, decoded )
+	}
+	return outputs
+}
+
 func chiSqr(expectedDist charFrequencyTable, observedDist charFrequencyTable) float64 {
 
 	score := float64(0)
@@ -167,4 +206,16 @@ func chiSqr(expectedDist charFrequencyTable, observedDist charFrequencyTable) fl
 		score += math.Pow((float64(observedDist[k])-float64(v)), 2) / float64(v)
 	}
 	return score
+}
+
+func englishness(b []byte) float64 {
+	freqb := byteFrequency(defaultCharset, b)
+	freq := relativeByteFrequency(freqb)
+
+	if freqb == nil {
+		return math.Inf(1)
+	}
+	expandedDefaultFreq := expandRelativeCharFreq(defaultFreq, 1000000)
+	expandedFreq := expandRelativeCharFreq(freq, 1000000)
+	return chiSqr(expandedDefaultFreq, expandedFreq)
 }

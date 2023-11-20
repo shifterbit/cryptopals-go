@@ -3,6 +3,7 @@ package cryptopalsgo_test
 import (
 	"bytes"
 	"encoding/hex"
+	"os"
 	"testing"
 
 	cryptopalsgo "github.com/shifterbit/cryptopals-go"
@@ -50,7 +51,6 @@ func TestFixedXOR(t *testing.T) {
 	}
 }
 
-
 func TestRecoverSingleByteXor(t *testing.T) {
 
 	input, _ := hex.DecodeString("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736")
@@ -62,4 +62,18 @@ func TestRecoverSingleByteXor(t *testing.T) {
 			string(expected), string(plaintext), string(expectedKey), string(key))
 	}
 
+}
+
+func TestDetectSingleByteXOR(t *testing.T) {
+	input, _ := os.ReadFile("4.txt")
+	splitInput := bytes.Split(input, []byte{'\n'})
+	hexDecodedInput := cryptopalsgo.HexDecodeAll(splitInput)
+
+	expected := []byte("Now that the party is jumping\n")
+	expectedKey := '5'
+	key, plaintext := cryptopalsgo.DetectSingleByteXOR(hexDecodedInput)
+	if bytes.Equal(expected, plaintext) != true || key != byte(expectedKey) {
+		t.Fatalf("expected plaintext %q got %q \n expected key %q got %q",
+			string(expected), string(plaintext), string(expectedKey), string(key))
+	}
 }
