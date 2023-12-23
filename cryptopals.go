@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"math"
 	"os"
+	"sort"
 )
 
 type charFrequencyTable map[byte]uint
@@ -120,6 +122,102 @@ func DetectSingleByteXOR(b [][]byte) (byte, []byte) {
 
 }
 
+type keySizeDistance struct {
+	keySize      int
+	editDistance int
+}
+
+type By func(k1, k2 *keySizeDistance) bool
+
+func (by By) Sort(keySizeDistances []keySizeDistance) {
+	ks := &keySizeDistanceSorter{
+		keySizeDistances: keySizeDistances,
+		by:               by,
+	}
+	sort.Sort(ks)
+}
+
+type keySizeDistanceSorter struct {
+	keySizeDistances []keySizeDistance
+	by               func(k1, k2 *keySizeDistance) bool
+}
+
+func (k *keySizeDistanceSorter) Less(i int, j int) bool {
+	return k.by(&k.keySizeDistances[i], &k.keySizeDistances[j])
+}
+
+func (k *keySizeDistanceSorter) Swap(i int, j int) {
+	k.keySizeDistances[i], k.keySizeDistances[j] = k.keySizeDistances[j], k.keySizeDistances[i]
+}
+
+func (ks *keySizeDistanceSorter) Len() int {
+	return len(ks.keySizeDistances)
+}
+
+func byDistance(k1, k2 *keySizeDistance) bool {
+	return k1.editDistance < k2.editDistance
+}
+
+// BreakRepeatingKeyXOR ...
+func BreakRepeatingKeyXOR(b []byte) ([]byte, error) {
+	keySizeDistances := []keySizeDistance{}
+	for keySize := 2; keySize < 40; keySize++ {
+		chunked := chunkBytes(b, keySize)
+
+		distance1, err := HammingDistance(chunked[0], chunked[1])
+		distance2, err := HammingDistance(chunked[2], chunked[3])
+		averageDistance := (distance1 + distance2) / 2
+		normalized := averageDistance / keySize
+		keySizeDistances = append(keySizeDistances, keySizeDistance{
+			keySize:      keySize,
+			editDistance: normalized,
+		})
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	By(byDistance).Sort(keySizeDistances)
+	keySize := keySizeDistances[0].keySize
+	blocks := chunkBytes(b, keySize)
+	transposedBlocks := transposeBlocks(blocks)
+
+	key := []byte{}
+	for _, block := range transposedBlocks {
+		blockKey, _ := RecoverSingleByteXOR(block)
+		key = append(key, blockKey)
+	}
+	return key, nil
+}
+
+func transposeBlocks(blocks [][]byte) [][]byte {
+	transposed := make([][]byte, len(blocks[0]))
+
+	for _, block := range blocks {
+		for pos, val := range block {
+			transposed[pos] = append(transposed[pos], val)
+		}
+	}
+
+	return transposed
+}
+
+func chunkBytes(b []byte, size int) [][]byte {
+	curr := b
+	chunks := [][]byte{}
+	for len(curr) > 0 {
+		if len(curr) < size {
+			chunks = append(chunks, curr)
+			curr = []byte{}
+			continue
+		}
+		chunks = append(chunks, curr[:size])
+		curr = curr[size:]
+	}
+	return chunks
+}
+
 func percentFromCharset(charset []byte, b []byte) int {
 	count := float64(0)
 	total := float64(len(b))
@@ -225,4 +323,23 @@ func englishness(b []byte) float64 {
 	expandedDefaultFreq := expandRelativeCharFreq(defaultFreq, 1000000)
 	expandedFreq := expandRelativeCharFreq(freq, 1000000)
 	return chiSqr(expandedDefaultFreq, expandedFreq)
+}
+
+func HammingDistance(a []byte, b []byte) (int, error) {
+	if len(a) != len(b) {
+		return 0, errors.New("Must be of same lenth")
+	}
+	distance := 0
+	for i := 0; i < len(a); i++ {
+		if a[i] != b[i] {
+			fst := int(a[i])
+			snd := int(b[i])
+			xor := fst ^ snd
+			for int(xor) != 0 {
+				xor = xor & (xor - 1)
+				distance++
+			}
+		}
+	}
+	return distance, nil
 }

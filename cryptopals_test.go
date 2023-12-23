@@ -91,3 +91,14 @@ func TestRepeatingKeyXOR(t *testing.T) {
 			string(expected), string(encoded))
 	}
 }
+
+func TestHammingDistance(t *testing.T) {
+	input := []byte("this is a test")
+	input2 := []byte("wokka wokka!!!")
+	expected := 37
+	output, _ := cryptopalsgo.HammingDistance(input, input2)
+	if  output != expected {
+		t.Fatalf("expected %v got %v", expected, output)
+	}
+
+}
