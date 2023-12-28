@@ -7,7 +7,7 @@ import (
 	"errors"
 	"math"
 	"os"
-	"sort"
+	editdistance "github.com/shifterbit/cryptopals-go/editdistance"
 )
 
 type charFrequencyTable map[byte]uint
@@ -122,45 +122,11 @@ func DetectSingleByteXOR(b [][]byte) (byte, []byte) {
 
 }
 
-type keySizeDistance struct {
-	keySize      int
-	editDistance int
-}
-
-type By func(k1, k2 *keySizeDistance) bool
-
-func (by By) Sort(keySizeDistances []keySizeDistance) {
-	ks := &keySizeDistanceSorter{
-		keySizeDistances: keySizeDistances,
-		by:               by,
-	}
-	sort.Sort(ks)
-}
-
-type keySizeDistanceSorter struct {
-	keySizeDistances []keySizeDistance
-	by               func(k1, k2 *keySizeDistance) bool
-}
-
-func (k *keySizeDistanceSorter) Less(i int, j int) bool {
-	return k.by(&k.keySizeDistances[i], &k.keySizeDistances[j])
-}
-
-func (k *keySizeDistanceSorter) Swap(i int, j int) {
-	k.keySizeDistances[i], k.keySizeDistances[j] = k.keySizeDistances[j], k.keySizeDistances[i]
-}
-
-func (ks *keySizeDistanceSorter) Len() int {
-	return len(ks.keySizeDistances)
-}
-
-func byDistance(k1, k2 *keySizeDistance) bool {
-	return k1.editDistance < k2.editDistance
-}
 
 // BreakRepeatingKeyXOR ...
 func BreakRepeatingKeyXOR(b []byte) ([]byte, error) {
-	keySizeDistances := []keySizeDistance{}
+	
+	keySizeDistances := []editdistance.KeysizeEditDistance{}
 	for keySize := 2; keySize < 40; keySize++ {
 		chunked := chunkBytes(b, keySize)
 
@@ -168,9 +134,9 @@ func BreakRepeatingKeyXOR(b []byte) ([]byte, error) {
 		distance2, err := HammingDistance(chunked[2], chunked[3])
 		averageDistance := (distance1 + distance2) / 2
 		normalized := averageDistance / keySize
-		keySizeDistances = append(keySizeDistances, keySizeDistance{
-			keySize:      keySize,
-			editDistance: normalized,
+		keySizeDistances = append(keySizeDistances, editdistance.KeysizeEditDistance{
+			KeySize:      keySize,
+			EditDistance: normalized,
 		})
 
 		if err != nil {
@@ -178,8 +144,8 @@ func BreakRepeatingKeyXOR(b []byte) ([]byte, error) {
 		}
 	}
 
-	By(byDistance).Sort(keySizeDistances)
-	keySize := keySizeDistances[0].keySize
+	editdistance.By(editdistance.ByDistance).Sort(keySizeDistances)
+	keySize := keySizeDistances[0].KeySize
 	blocks := chunkBytes(b, keySize)
 	transposedBlocks := transposeBlocks(blocks)
 
