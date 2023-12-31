@@ -2,11 +2,13 @@ package cryptopalsgo
 
 import (
 	"bytes"
+	"crypto/aes"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"math"
 	"os"
+
 	editdistance "github.com/shifterbit/cryptopals-go/editdistance"
 )
 
@@ -122,10 +124,9 @@ func DetectSingleByteXOR(b [][]byte) (byte, []byte) {
 
 }
 
-
 // BreakRepeatingKeyXOR ...
 func BreakRepeatingKeyXOR(b []byte) ([]byte, error) {
-	
+
 	keySizeDistances := []editdistance.KeysizeEditDistance{}
 	for keySize := 2; keySize < 40; keySize++ {
 		chunked := chunkBytes(b, keySize)
@@ -155,6 +156,21 @@ func BreakRepeatingKeyXOR(b []byte) ([]byte, error) {
 		key = append(key, blockKey)
 	}
 	return key, nil
+}
+
+func DecryptAesECB(key []byte, ciphertext []byte) ([]byte, error) {
+	cipher, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	size := 16
+	plaintext := make([]byte, len(ciphertext))
+	for start, end := 0, size; start < len(ciphertext); start, end = start+size, end+size {
+		cipher.Decrypt(plaintext[start:end], ciphertext[start:end])
+	}
+
+	cipher.Decrypt(plaintext, ciphertext)
+	return plaintext, nil
 }
 
 func transposeBlocks(blocks [][]byte) [][]byte {
