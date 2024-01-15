@@ -173,6 +173,32 @@ func DecryptAesECB(key []byte, ciphertext []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
+func DetectAesECB(ciphertexts [][]byte) []byte {
+	for _, ciphertext := range ciphertexts {
+		if hasMatchingChunks(ciphertext, 16) {
+			return ciphertext
+		}
+	}
+	return nil
+}
+func hasMatchingChunks(b []byte, chunkSize int) bool {
+	chunked := chunkBytes(b, 16)
+	duplicates := make(map[([16]byte)]bool)
+	for _, chunk := range chunked {
+		val, ok := duplicates[[16]byte(chunk)]
+
+		if !ok {
+			duplicates[[16]byte(chunk)] = false
+			continue
+		}
+
+		if val == false {
+			return true
+		}
+	}
+	return false
+}
+
 func transposeBlocks(blocks [][]byte) [][]byte {
 	transposed := make([][]byte, len(blocks[0]))
 
