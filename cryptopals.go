@@ -181,6 +181,16 @@ func DetectAesECB(ciphertexts [][]byte) []byte {
 	}
 	return nil
 }
+
+func PKCS7Padding(chunk []byte, length int) []byte {
+	diff := length - len(chunk)
+	if diff == 0 {
+		return chunk
+	} else {
+		return append(chunk, (bytes.Repeat([]byte{byte(diff)}, diff))...)
+
+	}
+}
 func hasMatchingChunks(b []byte, chunkSize int) bool {
 	chunked := chunkBytes(b, 16)
 	duplicates := make(map[([16]byte)]bool)
