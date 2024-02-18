@@ -182,6 +182,61 @@ func DetectAesECB(ciphertexts [][]byte) []byte {
 	return nil
 }
 
+func EncryptAesCBC(key []byte, iv []byte, plaintext []byte) ([]byte, error) {
+	if len(iv) != 16 {
+		return nil, errors.New("Initialization Vector should be the same as the block size(128bits or 16 bytes)")
+	}
+
+	if len(plaintext)%16 != 0 {
+		origLength := len(plaintext)
+		length := origLength - (len(plaintext) % 16) + 16
+		plaintext = PKCS7Padding(plaintext, length)
+	}
+
+	cipher, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+
+	}
+
+	size := 16
+	ciphertext := make([]byte, len(plaintext))
+	prev := iv // Make IV the zeroth block
+	for start, end := 0, size; start < len(plaintext); start, end = start+size, end+size {
+		curr := FixedXOR(prev, plaintext[start:end])
+		cipher.Encrypt(ciphertext[start:end], curr[:size])
+		prev = ciphertext[start:end]
+	}
+	return ciphertext, err
+
+}
+
+func DecryptAesCBC(key []byte, iv []byte, ciphertext []byte) ([]byte, error) {
+	if len(iv) != 16 {
+		return nil, errors.New("Initialization Vector should be the same as the block size(128bits or 16 bytes)")
+	}
+	cipher, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+
+	}
+
+	size := 16
+	plaintext := make([]byte, len(ciphertext))
+	// Store previous value
+	prev := iv
+	for start, end := 0, size; start < len(ciphertext); start, end = start+size, end+size {
+		initialDecryption := make([]byte, size)
+		cipher.Decrypt(initialDecryption[:size], ciphertext[start:end])
+		for i := 0; i < 16; i++ {
+			plaintext[start+i] = initialDecryption[i] ^ prev[i]
+		}
+		prev = ciphertext[start:end]
+	}
+	return plaintext, err
+
+}
+
 func PKCS7Padding(chunk []byte, length int) []byte {
 	diff := length - len(chunk)
 	if diff == 0 {
