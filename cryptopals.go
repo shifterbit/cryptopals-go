@@ -3,10 +3,12 @@ package cryptopalsgo
 import (
 	"bytes"
 	"crypto/aes"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"math"
+	psuedorand "math/rand"
 	"os"
 
 	editdistance "github.com/shifterbit/cryptopals-go/editdistance"
@@ -168,9 +170,25 @@ func DecryptAesECB(key []byte, ciphertext []byte) ([]byte, error) {
 	for start, end := 0, size; start < len(ciphertext); start, end = start+size, end+size {
 		cipher.Decrypt(plaintext[start:end], ciphertext[start:end])
 	}
-
-	cipher.Decrypt(plaintext, ciphertext)
 	return plaintext, nil
+}
+func EncryptAesECB(key []byte, plaintext []byte) ([]byte, error) {
+	cipher, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	if len(plaintext)%16 != 0 {
+		origLength := len(plaintext)
+		length := origLength - (len(plaintext) % 16) + 16
+		plaintext = PKCS7Padding(plaintext, length)
+	}
+	size := 16
+	ciphertext := make([]byte, len(plaintext))
+	for start, end := 0, size; start < len(plaintext); start, end = start+size, end+size {
+		cipher.Encrypt(ciphertext[start:end], plaintext[start:end])
+	}
+
+	return ciphertext, nil
 }
 
 func DetectAesECB(ciphertexts [][]byte) []byte {
@@ -236,6 +254,58 @@ func DecryptAesCBC(key []byte, iv []byte, ciphertext []byte) ([]byte, error) {
 	return plaintext, err
 
 }
+
+// Randomly encrypts a given piece of text with either ECB or CBC mode with a random Key
+func EncryptionOracle(text []byte) ([]byte, error) {
+	key, _ := GenerateRandomBytes(16)
+	iv, _ := GenerateRandomBytes(16)
+	header, _ := GenerateRandomBytes(10)
+	headerLength := psuedorand.Intn(6)
+	header = header[:(10 - headerLength)]
+	footer, _ := GenerateRandomBytes(10)
+	footerLength := psuedorand.Intn(6)
+	footer = footer[:(10 - footerLength)]
+
+	text = append(header, text...)
+	text = append(text, footer...)
+	
+	num := psuedorand.Intn(400) % 2
+
+	if num == 1 {
+		res, err := EncryptAesECB(key, text)
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
+	} else {
+		res, err := EncryptAesCBC(key, iv, text)
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
+	}
+}
+
+// Detects if a a ciphertext was produced using CBC or ECB mode
+func DetectECBandCBC(ciphertext []byte) string  {
+	if hasMatchingChunks(ciphertext, 16) {
+		return "ECB"
+	} else {
+		return "CBC"
+	}
+	
+}
+
+func GenerateRandomBytes(length uint) ([]byte, error) {
+	b := make([]byte, length)
+	_, err := rand.Read(b)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+
 
 func PKCS7Padding(chunk []byte, length int) []byte {
 	diff := length - len(chunk)
